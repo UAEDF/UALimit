@@ -161,7 +161,7 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     leg->SetFillColor(0);
     leg->Draw("same");
 
-/*
+
     vector<string> extensions;
     extensions.push_back(".png");
     extensions.push_back(".pdf");
@@ -188,9 +188,9 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     ExpBand95->GetYaxis()->SetRangeUser(min/3.,max*10);
     cLimit->Update();
     for(size_t i=0;i<extensions.size();++i) cLimit->Print( ("plots/"+filePrefix+"_zoom_log"+extensions[i]).c_str() );
-*/
+
     //  ExpBand95->GetXaxis()->SetRangeUser(x1,300.);
-    gPad->WaitPrimitive();
+    //gPad->WaitPrimitive();
     //  figName = "LimitPlots/" + LimTitle + "_zoom.gif" ;
     //  cLimit->SaveAs(figName.c_str()) ;
 
