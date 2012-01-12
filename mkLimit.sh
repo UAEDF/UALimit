@@ -12,8 +12,8 @@ get=0
 plt=0
 kil=0
 batch=0
-#ext='.card'
-ext='.txt'
+ext='.card'
+#ext='.txt'
 
 for arg in $* ; do
   case $arg in 
@@ -51,6 +51,7 @@ parse_config()
 
   # Limit Name
   grep LimitName  $cfg -q && LimitName=`(   cat $cfg | grep LimitName  | awk -F"=" '{print $2}' | sed "s: ::g")` || exit
+  grep LimTitle   $cfg -q && LimTitle=`(  cat $cfg | grep LimTitle | awk -F"=" '{print $2}'               )` || LimTitle=$LimitName
 
   # Data Inputs
   grep CardDir    $cfg -q && CardDir=`(     cat $cfg | grep CardDir    | awk -F"=" '{print $2}' | sed "s: ::g")` || CardDir=LimitCards
@@ -68,12 +69,15 @@ parse_config()
     LimCodeDir="/afs/cern.ch/user/x/xjanssen/scratch0/UALimit/CMSSW_4_2_8/src"
   fi
   grep MethodLimit $cfg -q && MethodLimit=`( cat $cfg | grep MethodLimit| awk -F"=" '{print $2}' | sed "s: ::g")` || MethodLimit=ProfileLikelihood
-  grep MthdOptCom  $cfg -q && MthdOptCom=`(  cat $cfg | grep MthdOptCom | awk -F"=" '{print $2}'               )` || MthdOptCom =''
-  grep MthdOptObs  $cfg -q && MthdOptObs=`(  cat $cfg | grep MthdOptObs | awk -F"=" '{print $2}'               )` || MthdOptObs =''
-  grep MthdOptExp  $cfg -q && MthdOptExp=`(  cat $cfg | grep MthdOptExp | awk -F"=" '{print $2}'               )` || MthdOptExp =''
+  grep MthdOptCom  $cfg -q && MthdOptCom=`(  cat $cfg | grep MthdOptCom | awk -F"=" '{print $2}'               )` || MthdOptCom=''
+  grep MthdOptObs  $cfg -q && MthdOptObs=`(  cat $cfg | grep MthdOptObs | awk -F"=" '{print $2}'               )` || MthdOptObs=''
+  grep MthdOptExp  $cfg -q && MthdOptExp=`(  cat $cfg | grep MthdOptExp | awk -F"=" '{print $2}'               )` || MthdOptExp=''
   grep DoObsLimit  $cfg -q && DoObsLimit=`(  cat $cfg | grep DoObsLimit | awk -F"=" '{print $2}' | sed "s: ::g")` || DoObsLimit=1
   grep DoExpLimit  $cfg -q && DoExpLimit=`(  cat $cfg | grep DoExpLimit | awk -F"=" '{print $2}' | sed "s: ::g")` || DoExpLimit=1
   grep ExpLimNIter $cfg -q && ExpLimNIter=`( cat $cfg | grep ExpLimNIter| awk -F"=" '{print $2}' | sed "s: ::g")` || ExpLimNIter=100
+
+  grep rMaxList    $cfg -q && rMaxList=`( cat $cfg | grep rMaxList      | awk -F"=" '{print $2}' )`                  || rMaxList=''
+  grep rMinList    $cfg -q && rMinList=`( cat $cfg | grep rMinList      | awk -F"=" '{print $2}' )`                  || rMinList=''
 
   # Splitting jobs Options
   grep SplitSwitch $cfg -q && SplitSwitch=`( cat $cfg | grep SplitSwitch| awk -F"=" '{print $2}' | sed "s: ::g")` || SplitSwitch=0 
@@ -88,7 +92,7 @@ parse_config()
   ExpSplitStep=`(echo $SplitExpLim | awk '{print $3}')`
 
 
-  #UseShape=1
+  UseShape=1
   
   echo
   echo '---------------------------------------'
@@ -107,6 +111,8 @@ parse_config()
   echo 'MthdOptObs  : ' $MthdOptObs  
   echo 'MthdOptExp  : ' $MthdOptExp
   echo 'ExpLimNIter : ' $ExpLimNIter
+  echo 'rMaxList    : ' $rMaxList
+  echo 'rMinList    : ' $rMinList
   echo '--------Splitting jobs Options---------'
   echo 'SplitSwitch : ' $SplitSwitch
   echo 'SplitObsLim : ' $SplitObsLim
@@ -143,15 +149,20 @@ sub_limit()
     cp /dev/null $btaskFile
     echo 'taskName  = UALimit'                                                >> $btaskFile
     echo 'inDir     = '`pwd`                                                  >> $btaskFile
+    echo `pwd`
     if [ "$UseShape" == "2" ] ; then 
       AllShapeFiles=`(echo $ShapeFiles | sed "s:XXX:*:g")`
-      echo 'inList    = '$CardDir'/* , ' $AllShapeFiles                       >> $btaskFile
+      #echo 'inList    = '$CardDir'/* , ' $AllShapeFiles                       >> $btaskFile
+      echo 'inList    = ' >> $btaskFile
+      echo $AllShapeFiles
+      #return
     else
-      echo 'inList    = '$CardDir'/*'                                           >> $btaskFile
+      echo 'inList    = '$CardDir'/*.job'  >> $btaskFile
+      #echo 'inList    = '$CardDir'/*'                                           >> $btaskFile
     fi
     echo 'outDir    = '`pwd`                                                  >> $btaskFile
     echo 'outList   = "higgsCombine_*.root" , "*.ExpLimit" , "*.ObsLimit"'    >> $btaskFile
-    echo 'execBase  = source '$VO_CMS_SW_DIR'/cmsset_default.sh ; cd '$LimCodeDir' ; ls ; eval `scramv1 runtime -sh` ; cd -' >> $btaskFile 
+    echo 'execBase  = cd LimitCards4.63fb-mll ; cp /afs/cern.ch/user/x/xjanssen/scratch0/UALimit/LimitCards4.63fb-mll/*  .; cd - ; source '$VO_CMS_SW_DIR'/cmsset_default.sh ; cd '$LimCodeDir' ; ls ; eval `scramv1 runtime -sh` ; cd - '   >> $btaskFile 
     EXECMULT='execMult   = '
   fi
  
@@ -159,7 +170,24 @@ sub_limit()
   FirstJob=1
   for mass in $MassPoints ; do  
     # Prepare job.x files
-    
+    Const=''   
+    for rMax in $rMaxList ; do
+ 
+      rMass=`(echo $rMax | awk -F":" '{print $1}')`
+      rVal=`(echo $rMax | awk -F":" '{print $2}')`
+      if [ "$mass" == "$rMass" ] ; then
+        Const=$Const' --rMax '$rVal
+      fi
+    done
+    for rMin in $rMinList ; do
+      rMass=`(echo $rMin | awk -F":" '{print $1}')`
+      rVal=`(echo $rMin | awk -F":" '{print $2}')`
+      if [ "$mass" == "$rMass" ] ; then
+        Const=$Const' --rMin '$rVal
+      fi
+    done
+    echo 'Mass = '$mass' --> Constraints : '  $Const 
+
     if [ $SplitSwitch -eq 0 ] ; then
       job=$CardDir/$mass'.'$MethodLimit'.job'
       cp /dev/null $job
@@ -221,12 +249,14 @@ sub_limit()
       if [ "$UseShape" == "1" ] ; then 
         echo cp $BaseDir/$CardDir'/'$PrefixCard$mass$SuffixCard'.root' $CardDir'/'$PrefixCard$mass$SuffixCard'.root' 
         pwd
-        cp $BaseDir/$CardDir'/'$PrefixCard$mass$SuffixCard'.root' $CardDir'/'$PrefixCard$mass$SuffixCard'.root'
+        #cp $BaseDir/$CardDir'/'$PrefixCard$mass$SuffixCard'.root' $CardDir'/'$PrefixCard$mass$SuffixCard'.root'
+        cp $BaseDir/$CardDir'/'*'.root' $CardDir'/.'
       else
         for ShapeFileTemplate in $ShapeFiles ; do
           ShapeFile=`(echo $ShapeFileTemplate | sed "s:XXX:$mass:")`  
-          #echo cp $BaseDir/$CardDir'/'$ShapeFile $CardDir'/'$ShapeFile   
-          cp $BaseDir/$CardDir'/'$ShapeFile .
+          #mkdir $CardDir'/shapes'
+          cp $BaseDir/$CardDir'/'$ShapeFile $CardDir'/'$ShapeFile   
+          #cp $BaseDir/$CardDir'/'$ShapeFile .
         done
       fi
     fi
@@ -234,9 +264,9 @@ sub_limit()
       if [ $SplitSwitch -eq 0 ] ; then
         outfile=$LimitName'_'$MethodLimit'_'$mass'.ObsLimit'
         if [ "$MethodLimit" == "Asymptotic" ] ; then
-          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs' --run=observed -m '$mass' -n _'$LimitName'.Obs' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
+          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs $Const' --run=observed -m '$mass' -n _'$LimitName'.Obs' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
         else 
-          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs' -m '$mass' -n _'$LimitName'.Obs' $CardDir'/'$PrefixCard$mass$SuffixCard$ext '  > '$outfile)
+          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs $Const' -m '$mass' -n _'$LimitName'.Obs' $CardDir'/'$PrefixCard$mass$SuffixCard$ext '  > '$outfile)
         fi
         echo $EXEC >> $job
       else
@@ -248,9 +278,9 @@ sub_limit()
             #echo $Start $End $iSeed
             outfile=$LimitName'_'$MethodLimit'_'$mass'.'$iSeed'.ObsLimit'
             if [ "$MethodLimit" == "Asymptotic" ] ; then
-              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs' --run=observed -s '$iSeed' -m '$mass' -n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
+              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs $Const' --run=observed -s '$iSeed' -m '$mass' -n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
             else
-              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs' -s '$iSeed' -m '$mass' -n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext '  > '$outfile)
+              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptObs $Const' -s '$iSeed' -m '$mass' -n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext '  > '$outfile)
             fi   
             echo $EXEC >> $jobi 
           done
@@ -261,9 +291,11 @@ sub_limit()
       if [ $SplitSwitch -eq 0 ] ; then
         outfile=$LimitName'_'$MethodLimit'_'$mass'.ExpLimit'
         if [ "$MethodLimit" == "Asymptotic" ] ; then
-          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp' --run=expected -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile) 
+          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' --run=expected -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile) 
+          #EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile) 
         else
-          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp' -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' -t '$ExpLimNIter' > '$outfile)
+          #EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' -t '$ExpLimNIter' > '$outfile)
+          EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' -m '$mass '-n _'$LimitName'.Exp' $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
         fi
         echo $EXEC >> $job
       else
@@ -275,9 +307,10 @@ sub_limit()
             #echo $Start $End $iSeed
             outfile=$LimitName'_'$MethodLimit'_'$mass'.'$iSeed'.ExpLimit'
             if [ "$MethodLimit" == "Asymptotic" ] ; then
-              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp' --run=expected -s '$iSeed' -m '$mass '-n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
+              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' --run=expected -s '$iSeed' -m '$mass '-n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' > '$outfile)
             else
-              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp' -s '$iSeed' -m '$mass '-n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' -t '$ExpLimNIter' > '$outfile)
+              #EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' -s '$iSeed' -m '$mass '-n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext ' -t '$ExpLimNIter' > '$outfile)
+              EXEC=$(echo 'combine -M '$MethodLimit $MthdOptCom $MthdOptExp $Const' -s '$iSeed' -m '$mass '-n _'$LimitName $CardDir'/'$PrefixCard$mass$SuffixCard$ext '  > '$outfile)
             fi
             echo $EXEC >> $jobi
           done
@@ -287,8 +320,9 @@ sub_limit()
     
     if [ $batch -eq 0 ] ; then
       source $job 
-      #pwd
-      #cat $job
+      pwd
+      #echo $job
+      cat $job
     fi
     
   done
@@ -322,13 +356,13 @@ get_limit()
     nTotal=`(   echo $status | awk '{print $6}')`
     if [ $nCrashed -gt 0 ] ; then
       echo "----> Some jobs crashed !!!! "
-      exit
+      #exit
     fi
     if [ $nTotal -ne $nFinished ] ; then
       echo "----> Not all jobs are DONE !!!!"
-      exit
+      #exit
     fi
-    btask -get -t $btaskName -norename -nojobid -def y
+    btask -get -t $btaskName -force -norename -nojobid -def y
     rm $lockFile
   fi
 
@@ -348,7 +382,7 @@ get_limit()
         DoObsLimitLoc=1
         DoExpLimitLoc=0
         iJob='.'$jjob
-        extract_limit_simple 
+#       extract_limit_simple 
       done
     fi
 
@@ -358,10 +392,10 @@ get_limit()
         DoObsLimitLoc=0
         DoExpLimitLoc=1
         iJob='.'$jjob
-        extract_limit_simple 
+#       extract_limit_simple 
       done
     fi
-    average_limit_simple
+#   average_limit_simple
 
   fi  
 
@@ -373,14 +407,14 @@ get_limit()
     ExpRootFile='dummy'
     if [ $DoObsLimit -gt 0 ] ; then
       ObsRootFile='higgsCombine_'$LimitName'.Obs.'$MethodLimit'.AllmH.root'
-      hadd -f $ObsRootFile 'higgsCombine_'$LimitName'.Obs.'$MethodLimit'.mH'*'.root' 
+      echo hadd -f $ObsRootFile 'higgsCombine_'$LimitName'.Obs.'$MethodLimit'.mH'*'.root' 
     fi
     if [ $DoExpLimit -gt 0 ] ; then
       ExpRootFile='higgsCombine_'$LimitName'.Exp.'$MethodLimit'.AllmH.root'
-      hadd -f $ExpRootFile 'higgsCombine_'$LimitName'.Exp.'$MethodLimit'.mH'*'.root' 
+      echo hadd -f $ExpRootFile 'higgsCombine_'$LimitName'.Exp.'$MethodLimit'.mH'*'.root' 
     fi
     if   [ $DoObsLimit -gt 0 ] && [ $DoExpLimit -gt 0 ] ; then
-      hadd -f $RootFile $ObsRootFile $ExpRootFile
+      echo hadd -f $RootFile $ObsRootFile $ExpRootFile
     elif [ $DoObsLimit -gt 0 ] ; then
       cp $ObsRootFile $RootFile 
     elif [ $DoExpLimit -gt 0 ] ; then
@@ -390,9 +424,42 @@ get_limit()
     RootFile='higgsCombine_'$LimitName'.All.'$MethodLimit'.AllmH.root'
     for mass in $MassPoints ; do 
       Files=`(ls 'higgsCombine_'$LimitName'.'$MethodLimit'.mH'$mass'.'*'.root')`
-      hadd -f 'higgsCombine_'$LimitName'.All.'$MethodLimit'.mH'$mass'.All.root' 'higgsCombine_'$LimitName'.'$MethodLimit'.mH'$mass'.'*'.root' 
+
+#      iFirstRootFile=0
+#      for iRootFile in $Files ; do
+#        echo $iRootFile
+#        if [ "$iFirstRootFile" == "0" ] ; then
+#          cp $iRootFile hadd2.root
+#          iFirstRootFile=1 
+#        else 
+#          hadd -f hadd2.root hadd1.root $iRootFile
+#        fi  
+#        mv hadd2.root hadd1.root
+#      done
+
+      nRootFile=0
+      RootFileList=''
+      iFirstRootFile=0
+      for iRootFile in $Files ; do
+        RootFileList=$RootFileList' '$iRootFile
+        nRootFile=$(expr $nRootFile + 1 )
+        if [ "$nRootFile" == "200" ] ; then
+          if [ "$iFirstRootFile" == "0" ] ; then
+            hadd -f hadd2.root $RootFileList
+            iFirstRootFile=1 
+          else 
+            hadd -f hadd2.root hadd1.root $RootFileList 
+          fi
+          mv hadd2.root hadd1.root
+          RootFileList=''
+          nRootFile=0
+        fi
+      done
+      hadd -f hadd2.root hadd1.root $RootFileList
+      mv hadd2.root 'higgsCombine_'$LimitName'.All.'$MethodLimit'.mH'$mass'.All.root'
+      #echo hadd -f 'higgsCombine_'$LimitName'.All.'$MethodLimit'.mH'$mass'.All.root' 'higgsCombine_'$LimitName'.'$MethodLimit'.mH'$mass'.'*'.root' 
     done
-    hadd -f $RootFile 'higgsCombine_'$LimitName'.All.'$MethodLimit'.mH'*'.All.root' 
+    #hadd -f $RootFile 'higgsCombine_'$LimitName'.All.'$MethodLimit'.mH'*'.All.root' 
   fi
 
   LimSummary=$LimitName'_'$MethodLimit'.bands.summary'
@@ -480,9 +547,9 @@ extract_limit_simple()
 plt_limit()
 {
   source /localgrid/xjanssen/root_5.28.00b/root/bin/thisroot.sh
-  LimTitle=$LimitName'_'$MethodLimit
+  LimFig=$LimitName'_'$MethodLimit
   limfile=LimitResults/$LimitName/$LimitName'_'$MethodLimit'.bands.summary'
-  root -l -q PlotLimit.C++"(\"$limfile\",\"$LimTitle\",\"$LimTitle\",$DoObsLimit,$DoExpLimit)" &
+  root -l -q src/PlotLimit.C++"(\"$limfile\",\"$LimFig\",\"$LimTitle\",$DoObsLimit,$DoExpLimit)" &
 }
 
 #----------------------------------------------------------------------------------

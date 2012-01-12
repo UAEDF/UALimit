@@ -45,19 +45,28 @@ void extractLimit( string LimSummary , TString filename , TString bandsname , bo
     FillMass = false ;
   }
 
+   bool useMeanBand = false;
+
   if ( DoExpLim ) {
-    TGraphAsymmErrors *mean68 = (TGraphAsymmErrors*) bands->Get("hww_mean");
-    TGraphAsymmErrors *mean95 = (TGraphAsymmErrors*) bands->Get("hww_mean_95");
+    TGraphAsymmErrors *mean68 = (TGraphAsymmErrors*) bands->Get("hww_median");
+    TGraphAsymmErrors *mean95 = (TGraphAsymmErrors*) bands->Get("hww_median_95");
     TGraphAsymmErrors *median68 = (TGraphAsymmErrors*) bands->Get("hww_median");
     TGraphAsymmErrors *median95 = (TGraphAsymmErrors*) bands->Get("hww_median_95");
     for ( int iMass = 0 ; iMass < mean68->GetN() ; ++iMass ) {
       if (FillMass) vMass       .push_back( mean >GetX()[iMass] );
       vMeanExpLimit   .push_back( mean68->GetY()[iMass] ) ;
       vMedianExpLimit .push_back( median68->GetY()[iMass] ) ;
-      vExpLim95Down   .push_back( mean68->GetY()[iMass] - mean95->GetErrorYlow(iMass)  );
-      vExpLim68Down   .push_back( mean68->GetY()[iMass] - mean68->GetErrorYlow(iMass)  );
-      vExpLim68Up     .push_back( mean68->GetY()[iMass] + mean68->GetErrorYhigh(iMass) );
-      vExpLim95Up     .push_back( mean68->GetY()[iMass] + mean95->GetErrorYhigh(iMass) );
+      if (useMeanBand) {
+        vExpLim95Down   .push_back( mean68->GetY()[iMass] - mean95->GetErrorYlow(iMass)  );
+        vExpLim68Down   .push_back( mean68->GetY()[iMass] - mean68->GetErrorYlow(iMass)  );
+        vExpLim68Up     .push_back( mean68->GetY()[iMass] + mean68->GetErrorYhigh(iMass) );
+        vExpLim95Up     .push_back( mean68->GetY()[iMass] + mean95->GetErrorYhigh(iMass) );
+      } else {
+        vExpLim95Down   .push_back( median68->GetY()[iMass] - median95->GetErrorYlow(iMass)  );
+        vExpLim68Down   .push_back( median68->GetY()[iMass] - median68->GetErrorYlow(iMass)  );
+        vExpLim68Up     .push_back( median68->GetY()[iMass] + median68->GetErrorYhigh(iMass) );
+        vExpLim95Up     .push_back( median68->GetY()[iMass] + median95->GetErrorYhigh(iMass) );
+      }
     }
     FillMass = false ;
   }

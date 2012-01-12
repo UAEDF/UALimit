@@ -1,4 +1,11 @@
 
+//68% band = 211, 
+//95% band = 90
+//expected line = 201 (dashed)
+//observed = kRed+3
+
+
+
 #include <TGraph.h>
 #include <TGraphAsymmErrors.h>
 #include <TAxis.h>
@@ -84,7 +91,7 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
             yd95[i] = y[i] - vExpLim95Down.at(i);  if(yd95[i] > max) max = yd95[i]; if(yd95[i] < min) min = yd95[i];
         }
         ExpBand95 = new TGraphAsymmErrors((signed) vMass.size(),x,y,ex,ex,yd95,yu95);
-        ExpBand95->SetFillColor(kYellow); 
+        ExpBand95->SetFillColor(90); 
         ExpBand95->GetYaxis()->SetRangeUser(0.,50);
         ExpBand95->GetXaxis()->SetRangeUser(x1,x2);
         ExpBand95->GetXaxis()->SetTitle("Higgs mass [GeV/c^{2}]");
@@ -93,12 +100,12 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
         ExpBand95->GetYaxis()->SetRangeUser(0.,50);
         ExpBand95->Draw("A3");
         ExpBand68 = new TGraphAsymmErrors((signed) vMass.size(),x,y,ex,ex,yd68,yu68);
-        ExpBand68->SetFillColor(kGreen); 
+        ExpBand68->SetFillColor(211); 
         ExpBand68->Draw("3");
 
         ExpLim = new TGraph((signed) vMass.size(),x,y);    
         ExpLim->SetLineWidth(2);
-        ExpLim->SetLineStyle(1);
+        ExpLim->SetLineStyle(2);
         ExpLim->Draw("l");
     }
 
@@ -112,9 +119,9 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
             y[i] = vObsLimit.at(i) ; if(y[i] > max) max = y[i]; if(y[i] < min) min = y[i];
         }
         ObsLim = new TGraph((signed) vMass.size(),x,y);
-        ObsLim->SetMarkerColor(kBlue);
+        ObsLim->SetMarkerColor(kRed+3);
         ObsLim->SetLineWidth(2);
-        ObsLim->SetLineColor(kBlue);
+        ObsLim->SetLineColor(kRed+3);
         //ObsLim->SetLineStyle(2);
         ObsLim->SetMarkerStyle(kFullCircle);
         if   (DoExpLim) ObsLim->Draw("lp");
@@ -132,27 +139,27 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     l->SetLineColor(kBlack);
     l->Draw("same");
 
-    TLatex* title = new TLatex(.19,.82,LimTitle.c_str());
+    TLatex* title = new TLatex(.19,.80,LimTitle.c_str());
     title->SetTextSize(.04);
     title->SetNDC(1);
     title->Draw("same");
 
-    TText* CMS = new TText(.19,.88,"CMS Preliminary");
+    TText* CMS = new TText(.19,.85,"CMS Preliminary");
     CMS ->SetTextSize(.05);
     CMS ->SetNDC(1);
     CMS ->Draw("same");
 
-    //TLatex* Lumi = new TLatex(.19,.84,"Lumi = 1.5 fb^{-1} ");
-    //Lumi ->SetTextSize(.03);
-    //Lumi ->SetNDC(1);
-    //Lumi ->Draw("same");
+    TLatex* Lumi = new TLatex(.19,.75,"L = 4.6 fb^{-1} ");
+    Lumi ->SetTextSize(.04);
+    Lumi ->SetNDC(1);
+    Lumi ->Draw("same");
 
 
     TLegend* leg = NULL ;  
     leg = new TLegend(0.60,0.75,0.9,0.88,"");
-    if (DoExpLim) leg->AddEntry(ExpLim,   "95% CL: median","l");
-    if (DoExpLim) leg->AddEntry(ExpBand68,"95% CL: 68% band","f");
-    if (DoExpLim) leg->AddEntry(ExpBand95,"95% CL: 95% band","f");
+    if (DoExpLim) leg->AddEntry(ExpLim,   "Median Expected","l");
+    if (DoExpLim) leg->AddEntry(ExpBand68,"Expected #pm 1#sigma","f");
+    if (DoExpLim) leg->AddEntry(ExpBand95,"Expected #pm 2#sigma","f");
     if (DoObsLim) leg->AddEntry(ObsLim,"Observed","lp");
     leg->SetTextSize(.03);
     leg->SetFillStyle(0);
@@ -161,6 +168,7 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     leg->SetFillColor(0);
     leg->Draw("same");
 
+    max=10;
 
     vector<string> extensions;
     extensions.push_back(".png");
@@ -172,7 +180,7 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     cLimit->Update();
     for(size_t i=0;i<extensions.size();++i) cLimit->Print( ("plots/"+filePrefix+"_lin"+extensions[i]).c_str() );
 
-    ExpBand95->GetXaxis()->SetRangeUser(x1,250);
+    ExpBand95->GetXaxis()->SetRangeUser(x1,300);
     ExpBand95->GetYaxis()->SetRangeUser(min-0.2,max+2);
     cLimit->Update();
     for(size_t i=0;i<extensions.size();++i) cLimit->Print( ("plots/"+filePrefix+"_zoom_lin"+extensions[i]).c_str() );
@@ -184,14 +192,14 @@ void PlotLimit ( string LimitFile , string filePrefix, string LimTitle , bool Do
     cLimit->Update();
     for(size_t i=0;i<extensions.size();++i) cLimit->Print( ("plots/"+filePrefix+"_log"+extensions[i]).c_str() );
 
-    ExpBand95->GetXaxis()->SetRangeUser(x1,250);
+    ExpBand95->GetXaxis()->SetRangeUser(x1,300);
     ExpBand95->GetYaxis()->SetRangeUser(min/3.,max*10);
     cLimit->Update();
     for(size_t i=0;i<extensions.size();++i) cLimit->Print( ("plots/"+filePrefix+"_zoom_log"+extensions[i]).c_str() );
 
     //  ExpBand95->GetXaxis()->SetRangeUser(x1,300.);
     //gPad->WaitPrimitive();
-    //  figName = "LimitPlots/" + LimTitle + "_zoom.gif" ;
+    //  figName = "LimitPlots/" + filePrefix + "_zoom.gif" ;
     //  cLimit->SaveAs(figName.c_str()) ;
 
 
